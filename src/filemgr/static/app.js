@@ -191,6 +191,7 @@ const state = {
   sortKey: 'name',    // 'name' | 'size' | 'mtime'
   sortDir: 'asc',     // 'asc' | 'desc'
   showHidden: false,
+  showChecks: false,
   search: {
     q: '',
     mode: 'off',      // 'off' | 'local' | 'global'
@@ -293,6 +294,7 @@ window.addEventListener('fmgr:lang-change', () => {
  * ================================================================ */
 const THEME_KEY = 'fmgr.theme';
 const HIDDEN_KEY = 'fmgr.hidden';
+const CHECKS_KEY = 'fmgr.checks';
 
 function applyHiddenToggle() {
   const btn = $('#btn-hidden');
@@ -319,6 +321,32 @@ $('#btn-hidden').addEventListener('click', () => {
   try { localStorage.setItem(HIDDEN_KEY, state.showHidden ? '1' : '0'); } catch {}
   renderRows();
   updateStatus();
+});
+function applyChecksToggle() {
+  const btn = $('#btn-checks');
+  const table = $('.filelist');
+  if (!btn || !table) return;
+  const show = state.showChecks;
+  const key = show ? 'topbar.checks.hide' : 'topbar.checks.show';
+  const lbl = t(key);
+  const useEl = btn.querySelector('use');
+  if (useEl) useEl.setAttribute('href', show ? '#i-check-square' : '#i-square');
+  btn.setAttribute('aria-label', lbl);
+  btn.setAttribute('title', lbl);
+  btn.dataset.i18nTitle = key;
+  btn.dataset.i18nAria = key;
+  table.classList.toggle('no-checks', !show);
+}
+(function initChecksToggle() {
+  try {
+    state.showChecks = localStorage.getItem(CHECKS_KEY) === '1';
+  } catch { state.showChecks = false; }
+  applyChecksToggle();
+})();
+$('#btn-checks').addEventListener('click', () => {
+  state.showChecks = !state.showChecks;
+  applyChecksToggle();
+  try { localStorage.setItem(CHECKS_KEY, state.showChecks ? '1' : '0'); } catch {}
 });
 function currentThemeIsDark() {
   const explicit = document.documentElement.dataset.theme;

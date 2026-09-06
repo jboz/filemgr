@@ -761,6 +761,7 @@ a, button { font-family: inherit; }
 .filelist tbody tr.selected { background: var(--row-selected); }
 .filelist tbody tr.selected:hover { background: #d2deff; }
 .col-check { width: 36px; text-align: center; }
+.filelist.no-checks .col-check { display: none; }
 .col-size { width: 120px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .col-mtime { width: 160px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .col-actions { width: 60px; text-align: right; }
