@@ -1,0 +1,1058 @@
+openapi: 3.1.0
+info:
+  title: filemgr API
+  version: 0.2.2
+  description: |
+    Web file manager for Linux. Multi-user file browsing with PAM authentication and
+    per-user privilege isolation via setuid. All file operations are scoped to the
+    authenticated user's home directory (`home`); relative paths are resolved under
+    HOME and cannot escape it.
+
+    # Authentication
+    Send `POST /api/login` with `{user, password}`. The server responds with a
+    `fmgr_session` HttpOnly cookie (SameSite=Strict) that must be sent on every
+    other API call. `GET /api/whoami` returns the current session.
+  license:
+    name: MIT
+
+servers:
+  - url: /
+    description: filemgr (configurable via listen_port/listen_host)
+
+paths:
+  /:
+    get:
+      summary: Serve the SPA
+      description: Returns the single-page application HTML. Non-API routes fall back to it for client-side routing.
+      responses:
+        "200":
+          description: SPA HTML
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /api/login:
+    post:
+      summary: Authenticate and start a session
+      description: |
+        Validates credentials against the configured PAM service and the allowlist
+        in config.toml. On success sets the `fmgr_session` cookie. Failed attempts
+        sleep 1s to slow brute force.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user, password]
+              properties:
+                user:
+                  type: string
+                  example: alice
+                password:
+                  type: string
+                  format: password
+                  example: s3cret
+      responses:
+        "200":
+          description: Logged in; session cookie set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: fmgr_session=...; HttpOnly; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+              example:
+                user: alice
+                home: /home/alice
+        "400":
+          $ref: "#/components/responses/BadJson"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/ServerFailure"
+
+  /api/logout:
+    post:
+      summary: End the current session
+      description: Invalidates the session token and clears the cookie.
+      responses:
+        "200":
+          description: Session invalidated
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/whoami:
+    get:
+      summary: Current session info
+      responses:
+        "200":
+          description: Session credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/list:
+    get:
+      summary: List a directory
+      description: Returns the entries of the directory at `path` (relative to home), directories first, sorted by name.
+      parameters:
+        - $ref: "#/components/parameters/PathQuery"
+      responses:
+        "200":
+          description: Directory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Entry"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/dirsize:
+    get:
+      summary: Disk usage of a directory
+      description: Recursively computes disk usage (`du -sh` style, blocks × 512), capped by config `dirsize_max_files` and `dirsize_timeout_seconds`.
+      parameters:
+        - $ref: "#/components/parameters/PathQuery"
+      responses:
+        "200":
+          description: Disk usage report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirSize"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/write_text:
+    post:
+      summary: Create or overwrite a text file
+      description: |
+        Creates a file with the given UTF-8 content. `overwrite=false` (default)
+        fails if the target already exists. Max size is 4× `preview_text_max_bytes`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  description: Path relative to home
+                  example: notes.md
+                content:
+                  type: string
+                  default: ""
+                  description: File content (empty creates an empty file)
+                overwrite:
+                  type: boolean
+                  default: false
+                  description: Allow overwriting an existing file
+      responses:
+        "200":
+          description: File written
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  size:
+                    type: integer
+                    description: Bytes written
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: Content exceeds the size cap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/mkdir:
+    post:
+      summary: Create a directory
+      description: Fails if the directory already exists; cannot create HOME itself.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  example: projects/new
+      responses:
+        "200":
+          description: Directory created
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/rename:
+    post:
+      summary: Rename or move a file or directory
+      description: Fails if the destination already exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [src, dst]
+              properties:
+                src:
+                  type: string
+                  description: Source path relative to home
+                dst:
+                  type: string
+                  description: Destination path relative to home
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/delete:
+    post:
+      summary: Delete a file or directory
+      description: |
+        Moves the target into the per-user trash (`~/.filemgr-trash`) unless
+        `permanent=true`. Trash retention (`trash_retention_days`) is applied
+        opportunistically. Returns the trash entry metadata for soft deletes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [path]
+              properties:
+                path:
+                  type: string
+                  description: Path relative to home
+                  example: old-report.txt
+                permanent:
+                  type: boolean
+                  default: false
+                  description: Permanently delete instead of sending to trash
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  permanent:
+                    type: boolean
+                  entry_id:
+                    type: string
+                    description: Trash entry id (soft delete only)
+                    example: 1725000000000-a1b2c3d4
+                  original_path:
+                    type: string
+                  original_name:
+                    type: string
+                  deleted_at:
+                    type: integer
+                    format: int64
+                  is_dir:
+                    type: boolean
+                  size:
+                    type: integer
+                    description: File size (files only)
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/trash/list:
+    get:
+      summary: List trash contents
+      description: |
+        Lists soft-deleted items with their metadata. Purges entries older than
+        `trash_retention_days` first. Directory sizes are computed recursively.
+      responses:
+        "200":
+          description: Trash contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrashList"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/trash/restore:
+    post:
+      summary: Restore a trash entry
+      description: Restores `entry_id` to `dst` (relative to home). Fails if `dst` already exists.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_id, dst]
+              properties:
+                entry_id:
+                  type: string
+                  description: Trash entry id returned by delete or trash/list
+                dst:
+                  type: string
+                  description: Destination path relative to home
+      responses:
+        "200":
+          description: Restored
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/trash/purge:
+    post:
+      summary: Permanently purge trash
+      description: Purges a single entry (`entry_id`) or the whole trash when omitted.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entry_id:
+                  type: string
+                  description: Specific trash entry to purge; empty/absent purges everything
+      responses:
+        "200":
+          description: Purged
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/stats:
+    get:
+      summary: Home directory statistics
+      description: |
+        Aggregated stats (sizes per type, top-5 largest, top-5 most recent, counts)
+        for the whole home. Results are cached 5 minutes per user unless
+        `refresh=1`.
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            description: Set to 1 to bypass the 5-minute cache
+      responses:
+        "200":
+          description: Stats report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/stats_stream:
+    get:
+      summary: Live stats stream
+      description: Same computation as `/api/stats` but streams progress updates and the final result as newline-delimited JSON (application/x-ndjson).
+      responses:
+        "200":
+          description: NDJSON stream; one JSON object per line
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+                description: JSON objects (progress lines, then the final stats object)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+      security:
+        - cookieAuth: []
+
+  /api/top_by_type:
+    get:
+      summary: Largest files of a category
+      description: Returns the top-N largest files matching the file category, with per-scan counters.
+      parameters:
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/Top"
+      responses:
+        "200":
+          description: Top files by category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopByType"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/top_by_type_stream:
+    get:
+      summary: Live top-by-type stream
+      description: NDJSON streaming variant of `/api/top_by_type`.
+      parameters:
+        - $ref: "#/components/parameters/Category"
+        - $ref: "#/components/parameters/Top"
+      responses:
+        "200":
+          description: NDJSON stream
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+                description: JSON objects (progress lines, then the final result object)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/search:
+    get:
+      summary: Fuzzy filename search
+      description: Recursively searches from `path` for names fuzzy-matching `q`. Timeout is hardcoded to 5s, max 300 matches, with an optional directory include.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+          description: Search query (fuzzy substring match)
+        - $ref: "#/components/parameters/PathQuery"
+        - name: include_dirs
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+            default: 1
+            description: Set to 0 to exclude directories from results
+      responses:
+        "200":
+          description: Search results (best score first)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Search"
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/upload:
+    post:
+      summary: Upload a file
+      description: |
+        Uploads a multipart file to `path`. If `path` ends with `/` (or has no
+        basename), the filename is appended. Size cap is `max_upload_bytes`
+        (default 10 GiB).
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            description: Destination directory or file path relative to home
+            example: uploads/
+        - name: overwrite
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+            default: 0
+            description: Set to 1 to overwrite an existing file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload
+      responses:
+        "200":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  size:
+                    type: integer
+                    description: Bytes written
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: Upload exceeds max_upload_bytes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/download:
+    get:
+      summary: Download a file
+      description: |
+        Streams a regular file. Supports `Range: bytes=...` (returns 206) and
+        `If-None-Match` is not used here (see preview/thumbnail). Sends
+        `Content-Disposition: attachment`.
+      parameters:
+        - $ref: "#/components/parameters/PathQuery"
+      responses:
+        "200":
+          description: Full file stream
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            Accept-Ranges:
+              schema:
+                type: string
+                const: bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content (Range request)
+          headers:
+            Content-Range:
+              schema:
+                type: string
+            Content-Length:
+              schema:
+                type: integer
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/download_batch:
+    post:
+      summary: Download multiple paths as a tar archive
+      description: Streams an uncompressed tar archive of the given paths (files or directories).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paths]
+              properties:
+                paths:
+                  type: array
+                  items:
+                    type: string
+                  description: Paths (relative to home) to include
+                  example: ["data/reads.fq.gz", "results"]
+      responses:
+        "200":
+          description: tar archive stream
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/x-tar:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/thumbnail:
+    get:
+      summary: Image thumbnail
+      description: |
+        Generates a JPEG thumbnail (requires the `thumbnails` extra / Pillow).
+        Supports `If-None-Match` for 304 responses; falls back to the frontend
+        icon on 404 (unsupported formats).
+      parameters:
+        - $ref: "#/components/parameters/PathQuery"
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 32
+            maximum: 512
+            default: 160
+            description: Thumbnail edge size in pixels
+      responses:
+        "200":
+          description: JPEG thumbnail
+          headers:
+            ETag:
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Not modified (If-None-Match matched)
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Not a file or thumbnail generation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/preview:
+    get:
+      summary: Preview a file
+      description: |
+        Smart preview endpoint.
+        - Text files (incl. .gz/.bgz) → JSON with truncated content (cap
+          `preview_text_max_bytes`);
+        - media / PDF → 200/206 binary stream with Range + ETag support;
+        - everything else → `{"kind": "unsupported"}`.
+      parameters:
+        - $ref: "#/components/parameters/PathQuery"
+      responses:
+        "200":
+          description: |
+            Preview content. `kind=text` returns JSON, others return a binary
+            stream (media/PDF) or an unsupported marker.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/TextPreview"
+                  - $ref: "#/components/schemas/UnsupportedPreview"
+        "206":
+          description: Partial content (media Range request)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Not modified (media If-None-Match matched)
+        "400":
+          $ref: "#/components/responses/HelperError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: fmgr_session
+      description: Session cookie set by POST /api/login
+
+  parameters:
+    PathQuery:
+      name: path
+      in: query
+      required: false
+      schema:
+        type: string
+        default: ""
+      description: Path relative to the user's home directory ("" = home root)
+    Category:
+      name: cat
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 40
+      description: File category (e.g. fastq, pdf, image, video, code, other)
+    Top:
+      name: top
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 20
+      description: Number of results to return
+
+  responses:
+    Unauthorized:
+      description: No valid session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    BadJson:
+      description: Malformed JSON body
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    HelperError:
+      description: |
+        Helper reported an error (path escapes home, file not found, permission
+        denied, etc.). Escape/denial errors return 403, others 400.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    ServerFailure:
+      description: Server-side failure (bad helper output, missing account, ...)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
+          example: path escapes home
+
+    SessionInfo:
+      type: object
+      required: [user, home]
+      properties:
+        user:
+          type: string
+          example: alice
+        home:
+          type: string
+          description: Resolved home (root) directory for the session
+          example: /home/alice
+
+    Entry:
+      type: object
+      required: [name, type, size, mtime, mode, is_symlink]
+      properties:
+        name:
+          type: string
+          description: File name
+        type:
+          type: string
+          enum: [dir, file, other, broken_symlink]
+        size:
+          type: integer
+          format: int64
+          description: Size in bytes (0 for directories)
+        mtime:
+          type: integer
+          format: int64
+          description: Last-modified unix timestamp
+        mode:
+          type: integer
+          description: Permission bits (stat.S_IMODE)
+        is_symlink:
+          type: boolean
+        error:
+          type: string
+          description: Present when stat failed (e.g. unreadable entry)
+
+    DirSize:
+      type: object
+      required: [size_bytes, file_count, truncated]
+      properties:
+        size_bytes:
+          type: integer
+          format: int64
+          description: Disk usage in bytes (blocks × 512, matches du -sh)
+        file_count:
+          type: integer
+          description: Regular files counted
+        truncated:
+          type: boolean
+          description: True if the scan stopped early (file cap or timeout)
+
+    TrashEntry:
+      type: object
+      required: [entry_id, entry_name, original_path, original_name, deleted_at, is_dir]
+      properties:
+        entry_id:
+          type: string
+        entry_name:
+          type: string
+          description: Name of the item inside ~/.filemgr-trash
+        original_path:
+          type: string
+          description: Original path relative to home
+        original_name:
+          type: string
+        deleted_at:
+          type: integer
+          format: int64
+          description: Deletion unix timestamp
+        is_dir:
+          type: boolean
+        size:
+          type: integer
+          format: int64
+          description: Size in bytes (dirs computed recursively)
+
+    TrashList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrashEntry"
+        retention_days:
+          type: number
+          description: Effective trash retention (from config)
+        total_size:
+          type: integer
+          format: int64
+          description: Sum of all trash item sizes
+
+    TopByType:
+      type: object
+      properties:
+        category:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FileRef"
+        matched:
+          type: integer
+          description: Files matching the category
+        scanned:
+          type: integer
+          description: Entries scanned
+        truncated:
+          type: boolean
+
+    FileRef:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path relative to home, starting with /
+        size:
+          type: integer
+          format: int64
+        mtime:
+          type: integer
+          format: int64
+          description: Unix timestamp
+
+    Stats:
+      type: object
+      required: [total_size, file_count, dir_count, recent_count, recent_days, scanned, by_type, top_files, recent_files, truncated, generated_at]
+      properties:
+        total_size:
+          type: integer
+          format: int64
+          description: Total disk usage (du -sh style)
+        file_count:
+          type: integer
+        dir_count:
+          type: integer
+        recent_count:
+          type: integer
+          description: Files modified within recent_days
+        recent_days:
+          type: integer
+        scanned:
+          type: integer
+          description: Entries scanned
+        by_type:
+          type: object
+          description: Per-category totals
+          additionalProperties:
+            type: object
+            properties:
+              size:
+                type: integer
+                format: int64
+              count:
+                type: integer
+        top_files:
+          type: array
+          description: Top-5 largest files
+          items:
+            $ref: "#/components/schemas/FileRef"
+        recent_files:
+          type: array
+          description: Top-5 most recently modified files
+          items:
+            $ref: "#/components/schemas/FileRef"
+        truncated:
+          type: boolean
+        generated_at:
+          type: integer
+          format: int64
+          description: Unix timestamp
+
+    Search:
+      type: object
+      required: [matches, truncated]
+      properties:
+        matches:
+          type: array
+          items:
+            type: object
+            required: [name, path, type, size, mtime, score, match]
+            properties:
+              name:
+                type: string
+              path:
+                type: string
+                description: Path relative to home, starting with /
+              type:
+                type: string
+                enum: [dir, file, other]
+              size:
+                type: integer
+                format: int64
+              mtime:
+                type: integer
+                format: int64
+              score:
+                type: integer
+                description: Higher is a better match
+              match:
+                type: array
+                items:
+                  type: integer
+                description: Character positions of the match within the name
+        truncated:
+          type: boolean
+          description: True if the 300-match cap or 5s timeout was hit
+
+    TextPreview:
+      type: object
+      required: [kind, content, truncated, size, compressed]
+      properties:
+        kind:
+          type: string
+          const: text
+        content:
+          type: string
+          description: Decoded (possibly truncated) text
+        truncated:
+          type: boolean
+        size:
+          type: integer
+          format: int64
+          description: Full file size in bytes
+        compressed:
+          type: boolean
+          description: True if the file is gzip-compressed
+        inner_ext:
+          type: string
+          nullable: true
+          description: Inner extension for compressed text (e.g. "fastq")
+
+    UnsupportedPreview:
+      type: object
+      required: [kind, mime, size]
+      properties:
+        kind:
+          type: string
+          const: unsupported
+        mime:
+          type: string
+        size:
+          type: integer
+          format: int64
+
+security:
+  - cookieAuth: []
