@@ -14,7 +14,7 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: jboz/${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-push:
@@ -44,7 +44,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
           flavor: |
-            latest=auto
+            latest=true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
