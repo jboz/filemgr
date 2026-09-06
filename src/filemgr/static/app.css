@@ -710,6 +710,7 @@ a, button { font-family: inherit; }
 .toolbar button.danger:hover {
   background: var(--danger); color: white; border-color: var(--danger);
 }
+.toolbar button.btn-hidden { padding: 7px 10px; }
 
 .main {
   overflow: auto;

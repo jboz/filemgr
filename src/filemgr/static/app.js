@@ -190,6 +190,7 @@ const state = {
   dirsizeCache: new Map(),
   sortKey: 'name',    // 'name' | 'size' | 'mtime'
   sortDir: 'asc',     // 'asc' | 'desc'
+  showHidden: false,
   search: {
     q: '',
     mode: 'off',      // 'off' | 'local' | 'global'
@@ -291,6 +292,34 @@ window.addEventListener('fmgr:lang-change', () => {
  * 主题（暗色模式）
  * ================================================================ */
 const THEME_KEY = 'fmgr.theme';
+const HIDDEN_KEY = 'fmgr.hidden';
+
+function applyHiddenToggle() {
+  const btn = $('#btn-hidden');
+  if (!btn) return;
+  const show = state.showHidden;
+  const key = show ? 'topbar.hidden.hide' : 'topbar.hidden.show';
+  const lbl = t(key);
+  const useEl = btn.querySelector('use');
+  if (useEl) useEl.setAttribute('href', show ? '#i-eye' : '#i-eye-off');
+  btn.setAttribute('aria-label', lbl);
+  btn.setAttribute('title', lbl);
+  btn.dataset.i18nTitle = key;
+  btn.dataset.i18nAria = key;
+}
+(function initHiddenToggle() {
+  try {
+    state.showHidden = localStorage.getItem(HIDDEN_KEY) === '1';
+  } catch { state.showHidden = false; }
+  applyHiddenToggle();
+})();
+$('#btn-hidden').addEventListener('click', () => {
+  state.showHidden = !state.showHidden;
+  applyHiddenToggle();
+  try { localStorage.setItem(HIDDEN_KEY, state.showHidden ? '1' : '0'); } catch {}
+  renderRows();
+  updateStatus();
+});
 function currentThemeIsDark() {
   const explicit = document.documentElement.dataset.theme;
   if (explicit === 'dark') return true;
@@ -706,9 +735,12 @@ $$('.filelist th.sortable').forEach((th) => {
 });
 
 function getEffectiveItems() {
+  const visibleTally = (list) => state.showHidden
+    ? list
+    : list.filter(i => !(i.name || '').startsWith('.'));
   const s = state.search;
   if (s.mode === 'global') {
-    return s.results.map(m => ({
+    return visibleTally(s.results).map(m => ({
       name: m.name, type: m.type, size: m.size, mtime: m.mtime,
       _absPath: m.path,
       _fuzzy: { score: m.score ?? 0, positions: m.match || [] },
@@ -716,13 +748,13 @@ function getEffectiveItems() {
   }
   if (s.mode === 'local' && s.q) {
     const out = [];
-    for (const i of state.items) {
+    for (const i of visibleTally(state.items)) {
       const m = fuzzyMatch(s.q, i.name);
       if (m) out.push({ ...i, _fuzzy: m });
     }
     return out;
   }
-  return state.items;
+  return visibleTally(state.items);
 }
 
 // 虚拟滚动状态（只在 cwd 下使用，搜索模式不用）
@@ -1099,8 +1131,9 @@ function updateToolbar() {
   $('#btn-download-batch')?.classList.toggle('hidden', n < 2);
 }
 function updateStatus() {
-  const files = state.items.filter(i => i.type === 'file').length;
-  const dirs = state.items.filter(i => i.type === 'dir').length;
+  const items = state.search.mode === 'off' ? getEffectiveItems() : state.items;
+  const files = items.filter(i => i.type === 'file').length;
+  const dirs = items.filter(i => i.type === 'dir').length;
   $('#status-left').textContent = t('status.summary', dirs, files);
   $('#status-right').textContent = state.home ? t('status.root', state.home) : '';
 }
@@ -1131,7 +1164,8 @@ $('#btn-rename').addEventListener('click', () => {
 $('#check-all').addEventListener('change', (ev) => {
   state.selected.clear();
   if (ev.target.checked) {
-    state.items.forEach(i => state.selected.add(joinPath(state.cwd, i.name)));
+    const visible = state.search.mode === 'off' ? getEffectiveItems() : state.items;
+    visible.forEach(i => state.selected.add(joinPath(state.cwd, i.name)));
   }
   renderRows();
 });

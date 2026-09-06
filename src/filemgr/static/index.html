@@ -125,6 +125,10 @@
   </section>
 
   <div class="toolbar">
+    <button id="btn-hidden" class="btn-hidden" title="显示隐藏文件" aria-label="显示隐藏文件"
+            data-i18n-title="topbar.hidden.show" data-i18n-aria="topbar.hidden.show">
+      <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg>
+    </button>
     <button id="btn-upload" class="primary">
       <svg class="icon"><use href="#i-upload"/></svg>
       <span data-i18n="toolbar.upload">上传</span>
@@ -381,6 +385,12 @@
           stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
     <circle cx="12" cy="12" r="3"/>
+  </symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/>
+    <circle cx="12" cy="12" r="2.8"/>
+    <path d="M4 19.5L20 4.5"/>
   </symbol>
   <symbol id="i-cancel" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="1.75" stroke-linecap="round">
