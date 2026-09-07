@@ -91,8 +91,9 @@ VCF / GFF / BED / H5AD / RData / ipynb / SIF and more, with transparent
   `prefers-reduced-motion` support
 - **Dark mode** follows `prefers-color-scheme` by default with a manual
   top-bar toggle
-- **i18n** (English + 简体中文) follows `navigator.language` with an `EN/中`
-  toggle
+- **i18n** (English + 简体中文 + Français) follows `navigator.language` with an
+  `EN/中/FR` toggle. The default language for new visitors is set via
+  `default_lang` in `config.toml` (`zh` if unset).
 - **Password show/hide** button on the login form
 - **404/500** for non-API paths falls back to the SPA so bookmarked deep
   URLs just work

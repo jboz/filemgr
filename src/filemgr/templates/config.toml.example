@@ -11,6 +11,7 @@ stats_timeout_seconds = 0            # 0 = unlimited
 preview_text_max_bytes = 1_048_576   # 1 MiB
 pam_service = "login"                # falls back to "common-auth" / "passwd" / "sshd"
 trash_retention_days = 3             # items older than this in .filemgr-trash are auto-purged
+default_lang = "zh"                  # default UI language for new visitors (zh | en | fr)
 
 # Login whitelist. Only users listed here can authenticate.
 # `name` must be an existing system account (getpwnam(name) must resolve).

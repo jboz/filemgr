@@ -472,18 +472,259 @@ const I18N = {
     'type.other': 'Other',
     'type.dirs': 'folder',
   },
+  fr: {
+    'app.title': 'Filemgr',
+    'app.brand': 'Filemgr',
+    'login.showPassword': 'Afficher le mot de passe',
+    'login.hidePassword': 'Masquer le mot de passe',
+    'toolbar.uploadFolder': 'Importer un dossier',
+    'toolbar.newFile': 'Nouveau fichier texte',
+    'toolbar.downloadBatch': 'Télécharger en archive',
+    'menu.editText': 'Modifier',
+    'menu.saveText': 'Enregistrer',
+    'dialog.newFile.title': 'Nouveau fichier texte',
+    'dialog.newFile.label': 'Nom du fichier',
+    'toast.savedText': 'Enregistré',
+    'toast.moved': 'Déplacé',
+    'dialog.confirm.deleteOneSized': 'Déplacer « {0} » ({1}) vers la corbeille ?',
+    'dialog.confirm.deleteManySized': 'Déplacer {0} éléments sélectionnés (~{1}{2}) vers la corbeille ?',
+    'dialog.confirm.unknownDirs': ', dont {0} dossier(s) de taille inconnue',
+    'trash.summaryWithSize': '{0} éléments · {1}',
+    'search.scopeHere': 'Rechercher dans le dossier actuel',
+    'search.scopeHome': 'Rechercher tout le dossier personnel',
+    'search.scopeHint': 'Recherche dans {0}',
+    'login.subtitle': 'Connectez-vous avec votre compte système',
+    'login.username': 'Nom d\'utilisateur',
+    'login.password': 'Mot de passe',
+    'login.submit': 'Se connecter',
+    'login.hint': 'Seuls les comptes système autorisés peuvent se connecter.',
+    'login.error.bad': 'Nom d\'utilisateur ou mot de passe incorrect',
+    'login.error.generic': 'Échec de la connexion',
+
+    'topbar.trash': 'Ouvrir la corbeille',
+    'topbar.theme.toDark': 'Passer au thème sombre',
+    'topbar.theme.toLight': 'Passer au thème clair',
+    'topbar.hidden.show': 'Afficher les fichiers cachés',
+    'topbar.hidden.hide': 'Masquer les fichiers cachés (fichiers en .)',
+    'topbar.checks.show': 'Afficher les cases à cocher',
+    'topbar.checks.hide': 'Masquer les cases à cocher',
+    'topbar.lang.switch': 'Changer de langue',
+    'topbar.refresh': 'Actualiser le dossier actuel',
+    'topbar.refresh.title': 'Actualiser (R)',
+    'topbar.logout': 'Se déconnecter',
+    'topbar.logout.title': 'Se déconnecter',
+
+    'toolbar.upload': 'Importer',
+    'toolbar.mkdir': 'Nouveau dossier',
+    'toolbar.search.placeholder': 'Rechercher des fichiers (Entrée = recherche récursive)',
+    'toolbar.search.clear': 'Effacer la recherche',
+    'toolbar.bulkDelete': 'Supprimer',
+    'toolbar.download': 'Télécharger',
+    'toolbar.rename': 'Renommer',
+    'toolbar.selection': '{0} sélectionné(s)',
+
+    'col.name': 'Nom',
+    'col.size': 'Taille',
+    'col.mtime': 'Modifié',
+    'col.actions': 'Actions',
+    'col.checkAll': 'Tout sélectionner',
+    'sort.byName': 'Trier par nom',
+    'sort.bySize': 'Trier par taille',
+    'sort.byMtime': 'Trier par date de modification',
+
+    'list.loading': 'Chargement…',
+    'list.empty': 'Ce dossier est vide',
+    'list.loadFailed': 'Échec du chargement : {0}',
+    'list.searchLocalEmpty': 'Aucun résultat dans ce dossier. Appuyez sur Entrée pour une recherche récursive.',
+    'list.searchGlobalEmpty': 'Aucun fichier ne correspond à « {0} »',
+    'list.searchingDots': 'Recherche en cours…',
+
+    'drop.hint': 'Déposez pour importer dans ce dossier',
+
+    'status.summary': '{0} dossiers, {1} fichiers',
+    'status.root': 'Racine : {0}',
+
+    'stats.title': 'Aperçu du dossier personnel',
+    'stats.toggleTitle': 'Cliquer pour replier/déplier',
+    'stats.refresh': 'Recalculer les statistiques',
+    'stats.refreshTitle': 'Recalculer',
+    'stats.label.total': 'Utilisé',
+    'stats.label.files': 'Fichiers',
+    'stats.label.dirs': 'Dossiers',
+    'stats.label.recent': 'Modifié en {0} j',
+    'stats.section.types': 'Par type',
+    'stats.section.top': 'Plus gros fichiers',
+    'stats.section.recent': 'Récemment modifié',
+    'stats.types.empty': '(aucun fichier)',
+    'stats.list.empty': 'aucune donnée',
+    'stats.meta.scanning': 'Analyse en cours…',
+    'stats.meta.failed': 'Statistiques échouées : {0}',
+    'stats.meta.when': '{0} · {1} éléments analysés',
+    'stats.stale': 'Statistiques obsolètes · recalcul…',
+    'stats.truncated': '⚠️ Statistiques tronquées (limite de fichiers ou de temps) ; résultats partiels',
+    'stats.inline.used': 'utilisé',
+    'stats.inline.files': 'fichiers',
+    'stats.inline.recent': '/ 7 j',
+
+    'topByType.title': '{0} · plus gros fichiers',
+    'topByType.showTop': 'Afficher les {0} plus gros',
+    'topByType.loading': 'Chargement… ({0} Top {1})',
+    'topByType.streaming': 'Analyse… {0} correspondances · {1} éléments analysés',
+    'topByType.summary': '{0} fichiers {1} au total, affichage des {2} plus gros',
+    'topByType.truncated': 'analyse tronquée',
+    'topByType.scanned': '{0} éléments analysés',
+    'topByType.none': 'Aucun fichier de ce type',
+    'topByType.loadFailed': 'Échec du chargement : {0}',
+
+    'menu.preview': 'Aperçu',
+    'menu.download': 'Télécharger',
+    'menu.rename': 'Renommer',
+    'menu.delete': 'Supprimer',
+    'menu.more': 'Plus d\'actions',
+    'menu.actionsOf': 'Actions pour {0}',
+
+    'dialog.confirm.ok': 'OK',
+    'dialog.confirm.cancel': 'Annuler',
+    'dialog.confirm.deleteTitle': 'Confirmer la suppression',
+    'dialog.confirm.deleteOne': 'Déplacer « {0} » vers la corbeille ?',
+    'dialog.confirm.deleteMany': 'Déplacer {0} éléments sélectionnés vers la corbeille ?',
+    'dialog.confirm.deleteBtn': 'Supprimer',
+    'dialog.mkdir.title': 'Nouveau dossier',
+    'dialog.mkdir.label': 'Nom du dossier',
+    'dialog.rename.title': 'Renommer',
+    'dialog.rename.label': 'Nouveau nom',
+
+    'toast.created': 'Créé',
+    'toast.renamed': 'Renommé',
+    'toast.deletedMany': '{0} éléments supprimés',
+    'toast.deletedManyPartial': '{0} éléments supprimés, {1} échec(s)',
+    'toast.trashedOne': 'Déplacé vers la corbeille : {0}',
+    'toast.trashedMany': '{0} éléments déplacés vers la corbeille',
+    'toast.trashedManyPartial': '{0} éléments déplacés, {1} échec(s)',
+    'toast.restoredOne': 'Restauré',
+    'toast.restoredMany': '{0} éléments restaurés',
+    'toast.emptyTrashed': 'Corbeille vidée',
+    'toast.purgedOne': 'Supprimé définitivement',
+    'toast.nameHasSlash': 'Le nom ne peut pas contenir /',
+    'toast.undoLabel': 'Annuler',
+    'toast.previewFailed': 'Aperçu échoué : {0}',
+    'toast.uploadFailed': '{0} : {1}',
+    'toast.downloadBigWarn': '{0} est volumineux ; téléchargement direct via le navigateur',
+
+    'breadcrumb.home': '{0}',
+
+    'searchBanner.searching': 'Recherche… <strong>{0}</strong>',
+    'searchBanner.found': 'Recherche <strong>{0}</strong> · {1} résultat(s){2}',
+    'searchBanner.truncatedSuffix': ' (tronqué)',
+    'searchBanner.truncatedNote': 'Tronqué à 300 résultats ou 5 s — affinez la recherche',
+    'searchBanner.failed': 'Recherche échouée : {0}',
+    'searchBanner.exit': 'Quitter la recherche',
+
+    'preview.close': 'Fermer',
+    'preview.download': 'Télécharger',
+    'preview.loading': 'Chargement…',
+    'preview.text.wrap': 'Retour à la ligne',
+    'preview.text.lineNo': 'Numéros de ligne',
+    'preview.text.gunzip.truncated': 'Décompressé automatiquement · premiers {0}{1}',
+    'preview.text.gunzip.full': 'Décompressé automatiquement{0} · taille compressée {1}',
+    'preview.text.truncated': 'Affichage des {0} premiers sur {1}',
+    'preview.image.hint': 'Ctrl+molette / pincer pour zoomer · glisser pour déplacer · double-clic pour basculer · clavier + − 0 1',
+    'preview.image.zoomOut': 'Zoom arrière (-)',
+    'preview.image.zoomIn': 'Zoom avant (+)',
+    'preview.image.fit': 'Ajuster (0)',
+    'preview.image.actual': 'Taille réelle (1)',
+    'preview.image.fitLabel': 'Ajuster',
+    'preview.pdf.hint': 'Ctrl+molette / pincer pour zoomer · Ctrl+= Ctrl+− Ctrl+0 (cliquez d\'abord sur le PDF)',
+    'preview.unsupported.title': 'Aperçu non pris en charge par le navigateur',
+    'preview.unsupported.meta': 'Type : {0}',
+    'preview.unsupported.metaSize': 'Type : {0} · Taille : {1}',
+
+    'transfer.title': 'Transferts',
+    'transfer.close': 'Fermer le panneau des transferts',
+    'transfer.cancel': 'Annuler',
+    'transfer.cancelOf': 'Annuler le transfert de {0}',
+    'transfer.waiting': 'En attente…',
+    'transfer.stat': '{0} · {1} restant',
+    'transfer.done': 'Terminé · {0} en moyenne',
+    'transfer.err': 'Échec',
+    'transfer.cancelled': 'Annulé',
+    'transfer.networkErr': 'Erreur réseau',
+
+    'trash.title': 'Corbeille',
+    'trash.retention': 'Les éléments de plus de {0} jours sont supprimés définitivement',
+    'trash.summary': '{0} éléments',
+    'trash.empty': 'La corbeille est vide',
+    'trash.emptyBtn': 'Vider la corbeille',
+    'trash.emptyConfirm.title': 'Vider la corbeille',
+    'trash.emptyConfirm.msg': 'Vider toute la corbeille ? Les éléments seront supprimés définitivement.',
+    'trash.restore': 'Restaurer',
+    'trash.restoreOf': 'Restaurer {0}',
+    'trash.purge': 'Supprimer définitivement',
+    'trash.purgeOf': 'Supprimer définitivement {0}',
+    'trash.purgeConfirm.title': 'Supprimer définitivement',
+    'trash.purgeConfirm.msg': '« {0} » sera supprimé définitivement et ne pourra pas être récupéré.',
+    'trash.isDir': 'dossier',
+    'trash.restoreFailed': '« {0} ». Saisissez un nouveau chemin (relatif au dossier personnel) :',
+    'trash.restoredOne': 'Restauré : {0}',
+    'trash.remain.imminent': 'suppression imminente',
+    'trash.remain.minutes': '{0} m restantes',
+    'trash.remain.hours': '{0} h restantes',
+    'trash.remain.days': '{0} j {1} h restants',
+    'trash.willDeleteAt': 'Seront supprimés définitivement le {0}',
+
+    'time.justNow': 'à l\'instant',
+    'time.minutesAgo': 'il y a {0} min',
+    'time.hoursAgo': 'il y a {0} h',
+    'time.daysAgo': 'il y a {0} j',
+
+    'type.image': 'Image',
+    'type.video': 'Vidéo',
+    'type.audio': 'Audio',
+    'type.pdf': 'PDF',
+    'type.archive': 'Archive',
+    'type.code': 'Code',
+    'type.document': 'Document',
+    'type.text': 'Texte',
+    'type.sequencing': 'Séquençage',
+    'type.variants': 'Variants',
+    'type.reference': 'Référence',
+    'type.matrix': 'Matrice',
+    'type.rdata': 'Données R',
+    'type.notebook': 'Notebook',
+    'type.container': 'Conteneur',
+    'type.other': 'Autre',
+    'type.dirs': 'dossier',
+  },
 };
 
 const LANG_KEY = 'fmgr.lang';
+const SUPPORTED_LANGS = ['en', 'zh', 'fr'];
+const VALID_LANG_RE = /^(en|zh|fr)$/;
 let currentLang = 'zh';
+
+function _htmlLang(lang) {
+  return lang === 'zh' ? 'zh-CN' : lang === 'fr' ? 'fr' : 'en';
+}
+
+// 默认语言：优先取服务端注入的 config（配置里可设 zh / en / fr），否则退回 zh。
+function _defaultLang() {
+  const cfg = (typeof window !== 'undefined' && window.FMGR_CONFIG)
+    ? window.FMGR_CONFIG.default_lang : null;
+  return (VALID_LANG_RE.test(cfg || '')) ? cfg : 'zh';
+}
 
 function _detectLang() {
   try {
     const saved = localStorage.getItem(LANG_KEY);
-    if (saved === 'en' || saved === 'zh') return saved;
+    if (VALID_LANG_RE.test(saved || '')) return saved;
   } catch {}
+  const def = _defaultLang();
+  if (VALID_LANG_RE.test(def || '')) return def;
   const nav = (navigator.language || '').toLowerCase();
-  return nav.startsWith('en') ? 'en' : 'zh';
+  if (nav.startsWith('zh')) return 'zh';
+  if (nav.startsWith('fr')) return 'fr';
+  if (nav.startsWith('en')) return 'en';
+  return 'zh';
 }
 
 function t(key, ...args) {
@@ -495,9 +736,9 @@ function t(key, ...args) {
 }
 
 function setLang(lang) {
-  if (lang !== 'en' && lang !== 'zh') return;
+  if (!VALID_LANG_RE.test(lang || '')) return;
   currentLang = lang;
-  document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+  document.documentElement.lang = _htmlLang(lang);
   try { localStorage.setItem(LANG_KEY, lang); } catch {}
   applyStaticTranslations();
   // 通知动态 UI 重新渲染（见 app.js 的监听）
@@ -524,7 +765,7 @@ function getLang() { return currentLang; }
 
 // 初始化：读偏好后立刻应用（app.js 加载时 DOM 已经存在）
 currentLang = _detectLang();
-document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-CN';
+document.documentElement.lang = _htmlLang(currentLang);
 
 // 暴露到全局
 window.I18N = I18N;
