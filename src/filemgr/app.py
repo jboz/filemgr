@@ -30,7 +30,6 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 
-
 PKG_DIR = Path(__file__).resolve().parent
 STATIC_DIR = PKG_DIR / "static"
 PY = sys.executable
@@ -247,12 +246,38 @@ async def helper_json(session: Session, *args: str) -> dict | list:
 app = FastAPI(title="File Manager", docs_url=None, redoc_url=None)
 
 
+def _default_lang() -> str:
+    """Validate the configured default language; fall back to zh."""
+    v = str(CFG.get("default_lang", "zh")).lower()
+    return v if v in ("zh", "en", "fr") else "zh"
+
+
+def _index_html() -> str:
+    html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    cfg_json = json.dumps({"default_lang": _default_lang()})
+    script = f"<script>window.FMGR_CONFIG = {cfg_json};</script>"
+    # 注入到 <head> 末尾（在 i18n.js / app.js 之前加载）
+    if "</head>" in html:
+        return html.replace("</head>", script + "</head>", 1)
+    return script + html
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root() -> Response:
-    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
+    return HTMLResponse(_index_html())
 
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+class _NoCacheStaticFiles(StaticFiles):
+    """Serve static files with `Cache-Control: no-cache` so the browser always
+    revalidates — vital during dev (--reload) where JS/i18n change frequently."""
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        resp = super().file_response(full_path, stat_result, scope, status_code)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
+app.mount("/static", _NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.exception_handler(404)
@@ -262,7 +287,7 @@ async def _not_found(request: Request, exc):  # noqa: ANN001
     p = request.url.path
     if p.startswith(("/api/", "/static/", "/openapi.json")):
         return JSONResponse({"detail": "not found"}, status_code=404)
-    return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
+    return HTMLResponse(_index_html())
 
 
 @app.exception_handler(500)

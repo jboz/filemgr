@@ -258,16 +258,22 @@ function renderNameHighlighted(name, positions) {
  * 语言切换
  * ================================================================ */
 function _updateLangButtons() {
-  // 按钮 label：当前是中文就显示 "EN"（按下后切到英文），反之 "中"
-  const next = (typeof getLang === 'function' && getLang() === 'en') ? '中' : 'EN';
+  // 按钮 label：显示下一个可切换的语言缩写（en → 中 → FR → EN…）
+  const order = ['en', 'zh', 'fr'];
+  const cur = (typeof getLang === 'function') ? getLang() : 'zh';
+  const idx = order.indexOf(cur);
+  const next = order[(idx + 1) % order.length];
+  const label = next === 'en' ? 'EN' : next === 'fr' ? 'FR' : '中';
   for (const id of ['lang-label', 'login-lang-label']) {
     const el_ = document.getElementById(id);
-    if (el_) el_.textContent = next;
+    if (el_) el_.textContent = label;
   }
 }
 function _toggleLang() {
+  const order = ['en', 'zh', 'fr'];
   const cur = (typeof getLang === 'function') ? getLang() : 'zh';
-  setLang(cur === 'en' ? 'zh' : 'en');
+  const idx = order.indexOf(cur);
+  setLang(order[(idx + 1) % order.length] || 'en');
 }
 // 应用首次翻译（i18n.js 已经设了 currentLang，DOM 此时已 ready）
 applyStaticTranslations();
