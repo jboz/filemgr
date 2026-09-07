@@ -13,6 +13,7 @@ Output convention:
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import os
 import shutil
@@ -48,18 +49,67 @@ def drop_privileges(user: str, uid: int, gid: int, home: str) -> None:
     os.umask(0o022)
 
 
-def safe_resolve(home: Path, relpath: str) -> Path:
-    """Resolve a user-supplied relative path under HOME. Reject escapes + symlink escapes."""
+def safe_resolve(home: Path, relpath: str, *, allow_symlink_out: bool = False) -> Path:
+    """Resolve a user-supplied relative path under HOME. Reject escapes + symlink escapes.
+
+    When *allow_symlink_out* is True the target may end up outside HOME as long as
+    the escape happens by traversing a symlink whose own name lives under HOME.
+    This lets the user navigate *into* a symlink (and descend further), while still
+    forbidding plain relative-path escapes (../../) and forbidding terms that jump
+    straight outside HOME before crossing any symlink.
+    """
     relpath = relpath.lstrip("/")
     candidate = (home / relpath) if relpath else home
+    # Compute the lexically-normalised parts (no symlink resolution) so we can
+    # walk the path component by component.
     try:
-        resolved = candidate.resolve(strict=False)
+        lexical = candidate.resolve(strict=False)
     except (OSError, RuntimeError) as e:
         die(f"resolve failed: {e}")
     home_resolved = home.resolve(strict=False)
-    if resolved != home_resolved and home_resolved not in resolved.parents:
+    # Fast path: after full canonicalisation the result is inside HOME → OK.
+    if lexical == home_resolved or home_resolved in lexical.parents:
+        return lexical
+    if not allow_symlink_out:
         die("path escapes home")
-    return resolved
+
+    in_home = lambda p: p == home_resolved or home_resolved in p.parents
+    escaped = False
+    cur = home_resolved
+    for part in relpath.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            # parent traversal is not part of the normal navigation model; only
+            # allow it while we are still inside HOME
+            if not escaped and in_home(cur):
+                cur = cur.parent
+                continue
+            die("path escapes home")
+        nxt = cur / part
+        try:
+            st = nxt.lstat()
+        except FileNotFoundError:
+            # trailing component that does not exist yet → stop walking
+            return nxt
+        if stat.S_ISLNK(st.st_mode):
+            tgt = nxt.resolve()
+            if not in_home(tgt):
+                # link lies under HOME but points outside → authorised escape
+                cur = tgt
+                escaped = True
+                continue
+            cur = tgt
+            continue
+        # non-link component
+        if escaped:
+            # already outside HOME via a symlink → allow descending further
+            cur = nxt
+            continue
+        if not in_home(nxt):
+            die("path escapes home")
+        cur = nxt
+    return cur
 
 
 def entry_info(p: Path, name: str | None = None) -> dict:
@@ -94,7 +144,7 @@ def entry_info(p: Path, name: str | None = None) -> dict:
 
 
 def op_list(home: Path, relpath: str) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if not p.is_dir():
         die("not a directory")
     is_home_root = (p.resolve() == home.resolve())
@@ -113,14 +163,14 @@ def op_list(home: Path, relpath: str) -> None:
 
 
 def op_stat(home: Path, relpath: str) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if not p.exists():
         die("not found")
     sys.stdout.write(json.dumps(entry_info(p)))
 
 
 def op_dirsize(home: Path, relpath: str, max_files: int, timeout: float) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if not p.is_dir():
         die("not a directory")
     total = 0
@@ -265,7 +315,7 @@ def _purge_expired_trash(home: Path, retention_days: float) -> int:
 
 def op_delete(home: Path, relpath: str, permanent: bool = False,
               retention_days: float = 0.0) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if p == home.resolve():
         die("refusing to delete home")
     if not p.exists() and not p.is_symlink():
@@ -303,7 +353,27 @@ def op_delete(home: Path, relpath: str, permanent: bool = False,
     try:
         p.rename(dst)
     except OSError as e:
-        die(f"delete failed: {e}")
+        if getattr(e, "errno", None) != errno.EXDEV:
+            die(f"delete failed: {e}")
+        # Cross-filesystem: copy into the trash then remove the original.
+        try:
+            if p.is_dir() and not p.is_symlink():
+                shutil.copytree(p, dst, symlinks=True)
+            else:
+                shutil.copy2(p, dst)
+            if p.is_dir() and not p.is_symlink():
+                shutil.rmtree(p)
+            else:
+                p.unlink()
+        except OSError as e2:
+            try:
+                if dst.is_dir() and not dst.is_symlink():
+                    shutil.rmtree(dst, ignore_errors=True)
+                else:
+                    dst.unlink(missing_ok=True)
+            except Exception:
+                pass
+            die(f"delete failed: {e2}")
     # 原始路径相对 home 保存
     home_resolved = home.resolve()
     try:
@@ -426,7 +496,7 @@ def op_trash_purge(home: Path, entry_id: str = "") -> None:
 
 def op_read_stream(home: Path, relpath: str, offset: int, length: int,
                    gunzip: bool = False) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if not p.is_file():
         die("not a regular file")
     try:
@@ -817,7 +887,7 @@ def op_search(home: Path, relpath: str, query: str, max_n: int,
 
 
 def op_write_stream(home: Path, relpath: str, overwrite: bool) -> None:
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if p == home.resolve():
         die("cannot write home")
     parent = p.parent
@@ -1085,7 +1155,7 @@ def op_thumbnail(home: Path, relpath: str, size: int) -> None:
         from PIL import Image, ImageOps  # type: ignore
     except Exception:
         die("Pillow not installed (pip install 'filemgr[thumbnails]')")
-    p = safe_resolve(home, relpath)
+    p = safe_resolve(home, relpath, allow_symlink_out=True)
     if not p.is_file():
         die("not a regular file")
     st = p.stat()
